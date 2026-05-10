@@ -3,8 +3,8 @@ const mqtt = require('mqtt');
 const app = express();
 
 const PORT = process.env.PORT || 8080;
-const AIO_USERNAME = "barce";
-const AIO_KEY = "aio_sHIJ366ZvkXzLuGTYGorSfMPJOCH";
+const AIO_USERNAME = process.env.AIO_USERNAME;
+const AIO_KEY = process.env.AIO_KEY;;
 
 let usageCount = 0;
 let lastLidState = "CLOSED";
