@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BINBOT CMS v2.0</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --neon: #00FF41; --bg: #000; }
+        body { background: var(--bg); color: var(--neon); font-family: 'Courier New', monospace; padding: 15px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }
+        .panel { border: 2px solid var(--neon); padding: 15px; box-shadow: inset 0 0 10px rgba(0,255,65,0.2); text-align: center; }
+        .btn { width: 100%; padding: 15px; margin: 5px 0; background: none; color: var(--neon); border: 1px solid var(--neon); cursor: pointer; font-family: inherit; font-weight: bold; }
+        .btn:hover { background: var(--neon); color: #000; }
+        .progress-bg { background: #111; height: 25px; border: 1px solid var(--neon); margin: 10px 0; }
+        .progress-fill { background: var(--neon); height: 100%; width: 0%; transition: 1s; }
+        #bin-icon { font-size: 60px; transition: 0.5s; display: inline-block; margin: 10px; }
+    </style>
+</head>
+<body>
+    <h1 style="text-align:center">[ BINBOT_CENTRAL_SYSTEM_v2 ]</h1>
+    <div class="grid">
+        <div class="panel">
+            <h2>COMMAND_PANEL</h2>
+            <button class="btn" onclick="send('OPEN')">> EXECUTE: OPEN_LID</button>
+            <button class="btn" onclick="send('CLOSE')">> EXECUTE: CLOSE_LID</button>
+            <button class="btn" id="voiceBtn" onclick="startVoice()">VOICE_LISTENING: OFF</button>
+        </div>
+        <div class="panel">
+            <h2>TELEMETRY</h2>
+            <div id="bin-icon">🗑️</div>
+            <div id="status-txt">LID_CLOSED</div>
+            <div class="progress-bg"><div id="fill-bar" class="progress-fill"></div></div>
+            <div>FILL_LEVEL: <span id="perc">0</span>%</div>
+        </div>
+        <div class="panel">
+            <h2>NETWORK_LATENCY</h2>
+            <canvas id="latChart"></canvas>
+            <p>USAGE: <span id="usage">0</span> | MQTT: <span id="mqtt">...</span></p>
+        </div>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('latChart').getContext('2d');
+        const chart = new Chart(ctx, { type: 'line', data: { labels: [], datasets: [{ label: 'Latency', data: [], borderColor: '#00FF41', tension: 0.3 }] }, options: { scales: { y: { beginAtZero: true } } } });
+
+        async function send(cmd) {
+            const res = await fetch('/command', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({command: cmd}) });
+            const data = await res.json();
+            chart.data.labels.push(new Date().toLocaleTimeString());
+            chart.data.datasets[0].data.push(data.latency);
+            if(chart.data.labels.length > 10) { chart.data.labels.shift(); chart.data.datasets[0].data.shift(); }
+            chart.update();
+        }
+
+        async function update() {
+            const res = await fetch('/analytics'); const data = await res.json();
+            document.getElementById('usage').innerText = data.usage;
+            document.getElementById('perc').innerText = data.fill;
+            document.getElementById('fill-bar').style.width = data.fill + "%";
+            document.getElementById('mqtt').innerText = data.mqtt ? "STABLE" : "LOST";
+            
+            const icon = document.getElementById('bin-icon');
+            if(data.state === "OPEN") { icon.style.transform = "rotate(-20deg) translateY(-10px)"; document.getElementById('status-txt').innerText = "LID_OPENED"; }
+            else { icon.style.transform = "rotate(0deg)"; document.getElementById('status-txt').innerText = "LID_CLOSED"; }
+        }
+
+        function startVoice() {
+            const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            rec.onstart = () => document.getElementById('voiceBtn').innerText = "VOICE_LISTENING: ON";
+            rec.onresult = (e) => { const t = e.results[0][0].transcript.toUpperCase(); if(t.includes("OPEN")) send("OPEN"); if(t.includes("CLOSE")) send("CLOSE"); };
+            rec.onend = () => document.getElementById('voiceBtn').innerText = "VOICE_LISTENING: OFF";
+            rec.start();
+        }
+        setInterval(update, 2000);
+    </script>
+</body>
+</html>
