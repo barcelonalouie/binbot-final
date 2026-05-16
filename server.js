@@ -4,16 +4,16 @@ const app = express();
 
 const PORT = process.env.PORT || 8080;
 
-// Secure Environment Variable Injection (Bypasses GitHub Rules)
-const AIO_USERNAME = process.env.AIO_USERNAME || "";
-const AIO_KEY = process.env.AIO_KEY || "";
+// Auto-Clean Environment Variables (Strips Railway's forced quotation marks)
+const AIO_USERNAME = (process.env.AIO_USERNAME || "").replace(/^"|"$/g, '').trim();
+const AIO_KEY = (process.env.AIO_KEY || "").replace(/^"|"$/g, '').trim();
 
 let usageCount = 0;
 let lastLidState = "CLOSED";
 let currentFill = 35; // Presentation baseline value (35%)
 let client = null;
 
-// Cloud-Proof WebSocket Profile (Matches Your Account Topology)
+// Cloud-Proof WebSocket Profile
 if (AIO_USERNAME && AIO_KEY) {
     console.log(`LOG INITIALIZATION: Spawning tunnel for account: [${AIO_USERNAME}]`);
     
