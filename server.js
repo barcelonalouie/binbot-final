@@ -4,21 +4,21 @@ const app = express();
 
 const PORT = process.env.PORT || 8080;
 
-// Auto-Clean Environment Variables (Strips Railway's forced quotation marks)
+// Quote-Proof Sanitization Profile (Strips Railway's forced JSON quotation marks)
 const AIO_USERNAME = (process.env.AIO_USERNAME || "").replace(/^"|"$/g, '').trim();
 const AIO_KEY = (process.env.AIO_KEY || "").replace(/^"|"$/g, '').trim();
 
 let usageCount = 0;
 let lastLidState = "CLOSED";
-let currentFill = 35; // Presentation baseline value (35%)
+let currentFill = 35; // Presentation baseline value
 let client = null;
 
-// Cloud-Proof WebSocket Profile
+// Cloud WebSocket Connection Tunnel (Uses standard Web Port 443)
 if (AIO_USERNAME && AIO_KEY) {
-    console.log(`LOG INITIALIZATION: Spawning tunnel for account: [${AIO_USERNAME}]`);
+    console.log(`LOG INITIALIZATION: Spawning tunnel for account string: [${AIO_USERNAME}]`);
     
     client = mqtt.connect(`wss://io.adafruit.com/mqtt`, {
-      port: 443, // Disguises stream over standard HTTPS web traffic to slip through firewalls
+      port: 443, // Disguises connection as normal web traffic to bypass cloud firewalls
       username: AIO_USERNAME,
       password: AIO_KEY,
       rejectUnauthorized: false,
@@ -27,7 +27,7 @@ if (AIO_USERNAME && AIO_KEY) {
 
     client.on('connect', () => {
         console.log("SUCCESS: Cloud WebSocket Tunnel Established on Railway.");
-        client.subscribe(`${AIO_USERNAME}/feeds/+`); // Wildcard captures your feed dynamically
+        client.subscribe(`${AIO_USERNAME}/feeds/+`); // Dynamically tracks your binbot feed
     });
 
     client.on('message', (topic, msg) => {
