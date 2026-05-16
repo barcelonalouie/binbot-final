@@ -5,49 +5,55 @@ const app = express();
 
 const PORT = process.env.PORT || 8080;
 
-// Railway Environment Variables
-const AIO_USERNAME = (process.env.AIO_USERNAME || "").trim();
-const AIO_KEY = (process.env.AIO_KEY || "").trim();
+// ADAFRUIT IO CREDENTIALS
+const AIO_USERNAME = process.env.AIO_USERNAME;
+const AIO_KEY = process.env.AIO_KEY;
 
-// System Variables
+// SYSTEM VARIABLES
 let usageCount = 0;
-let lastLidState = "CLOSED";
 let currentFill = 0;
+let lastLidState = "CLOSED";
 
+// MQTT CLIENT
 let client = null;
 
-// Middleware
+// EXPRESS
 app.use(express.static('public'));
 app.use(express.json());
 
-// Start Express Server FIRST
+// START SERVER
 app.listen(PORT, '0.0.0.0', () => {
 
-    console.log(`BINBOT SERVER RUNNING ON PORT ${PORT}`);
+    console.log(`SERVER RUNNING ON PORT ${PORT}`);
 
     initializeMQTT();
 });
 
-// =========================
-// MQTT INITIALIZATION
-// =========================
+// ============================
+// MQTT CONNECTION
+// ============================
 
 function initializeMQTT() {
 
     if (!AIO_USERNAME || !AIO_KEY) {
 
-        console.error("ERROR: Missing Adafruit IO credentials.");
+        console.error("Adafruit credentials missing.");
+
         return;
     }
 
-    console.log("CONNECTING TO ADAFRUIT IO MQTT...");
+    console.log("CONNECTING TO ADAFRUIT IO...");
 
-    client = mqtt.connect('wss://io.adafruit.com:443/mqtt/', {
+    // FIXED MQTT CONNECTION
+    client = mqtt.connect('mqtts://io.adafruit.com', {
+
+        port: 8883,
 
         username: AIO_USERNAME,
+
         password: AIO_KEY,
 
-        protocol: 'wss',
+        protocol: 'mqtts',
 
         reconnectPeriod: 5000,
 
@@ -56,35 +62,48 @@ function initializeMQTT() {
         clean: true
     });
 
-    // SUCCESSFUL CONNECTION
+    // CONNECTED
     client.on('connect', () => {
 
-        console.log("MQTT CONNECTED SUCCESSFULLY");
+        console.log("MQTT CONNECTED!");
 
-        const lidFeed = `${AIO_USERNAME}/feeds/google-binbot`;
+        const topic =
+            `${AIO_USERNAME}/feeds/google-binbot`;
 
-        client.subscribe(lidFeed, (err) => {
+        client.subscribe(topic, (err) => {
 
             if (err) {
 
-                console.error("SUBSCRIBE ERROR:", err);
+                console.error(
+                    "SUBSCRIBE FAILED:",
+                    err
+                );
 
             } else {
 
-                console.log(`SUBSCRIBED TO: ${lidFeed}`);
+                console.log(
+                    `SUBSCRIBED TO ${topic}`
+                );
             }
         });
     });
 
-    // INCOMING DATA
+    // MESSAGE RECEIVED
     client.on('message', (topic, message) => {
 
-        const payload = message.toString().trim().toUpperCase();
+        const payload =
+            message.toString()
+            .trim()
+            .toUpperCase();
 
-        console.log(`MESSAGE RECEIVED -> ${topic}: ${payload}`);
+        console.log(
+            `MESSAGE: ${topic} -> ${payload}`
+        );
 
-        // GOOGLE BINBOT FEED
-        if (topic === `${AIO_USERNAME}/feeds/google-binbot`) {
+        if (
+            topic ===
+            `${AIO_USERNAME}/feeds/google-binbot`
+        ) {
 
             // OPEN
             if (payload === "OPEN") {
@@ -93,10 +112,10 @@ function initializeMQTT() {
 
                     usageCount++;
 
-                    // Simulated Fill Increase
                     currentFill += 5;
 
                     if (currentFill > 100) {
+
                         currentFill = 100;
                     }
                 }
@@ -105,21 +124,25 @@ function initializeMQTT() {
             }
 
             // CLOSE
-            else if (payload === "CLOSE" || payload === "CLOSED") {
+            else if (
+                payload === "CLOSE" ||
+                payload === "CLOSED"
+            ) {
 
                 lastLidState = "CLOSED";
             }
 
-            console.log("CURRENT STATE:", lastLidState);
-            console.log("CURRENT FILL:", currentFill);
-            console.log("TOTAL USAGE:", usageCount);
+            console.log("STATE:", lastLidState);
         }
     });
 
-    // ERROR HANDLING
+    // ERRORS
     client.on('error', (err) => {
 
-        console.error("MQTT ERROR:", err.message);
+        console.error(
+            "MQTT ERROR:",
+            err.message
+        );
     });
 
     client.on('offline', () => {
@@ -133,9 +156,9 @@ function initializeMQTT() {
     });
 }
 
-// =========================
+// ============================
 // API ROUTES
-// =========================
+// ============================
 
 // ANALYTICS
 app.get('/analytics', (req, res) => {
@@ -152,10 +175,11 @@ app.get('/analytics', (req, res) => {
     });
 });
 
-// COMMAND
+// SEND COMMAND
 app.post('/command', (req, res) => {
 
-    const command = req.body.command;
+    const command =
+        req.body.command;
 
     if (!command) {
 
@@ -169,26 +193,31 @@ app.post('/command', (req, res) => {
 
         return res.status(500).json({
 
-            error: "MQTT is offline."
+            error: "MQTT offline."
         });
     }
 
-    const upperCommand = command.toUpperCase().trim();
+    const upperCommand =
+        command.toUpperCase().trim();
 
     client.publish(
 
         `${AIO_USERNAME}/feeds/google-binbot`,
+
         upperCommand,
 
         (err) => {
 
             if (err) {
 
-                console.error("PUBLISH ERROR:", err);
+                console.error(
+                    "PUBLISH FAILED:",
+                    err
+                );
 
                 return res.status(500).json({
 
-                    error: "Failed to publish command."
+                    error: "Publish failed."
                 });
             }
 
@@ -206,14 +235,11 @@ app.post('/command', (req, res) => {
 app.post('/reset', (req, res) => {
 
     usageCount = 0;
+
     currentFill = 0;
 
     res.json({
 
-        success: true,
-
-        usage: usageCount,
-
-        fill: currentFill
+        success: true
     });
 });
