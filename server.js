@@ -6,8 +6,8 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 
 // ADAFRUIT IO CREDENTIALS
-const AIO_USERNAME ="barce";
-const AIO_KEY ="aio_gdqP26j5BmJTsG3xnQdHHVVIan7p";
+const AIO_USERNAME = "barce";
+const AIO_KEY = "aio_gdqP26j5BmJTsG3xnQdHHVVIan7p";
 
 // SYSTEM VARIABLES
 let usageCount = 0;
@@ -34,69 +34,124 @@ app.listen(PORT, '0.0.0.0', () => {
 // ============================
 
 function initializeMQTT() {
+
     if (!AIO_USERNAME || !AIO_KEY) {
+
         console.error("Adafruit credentials missing.");
+
         return;
     }
 
     console.log("CONNECTING TO ADAFRUIT IO VIA SECURE WEBSOCKETS...");
 
-    // Using wss:// on Port 443 bypasses cloud environment port blocking entirely
+    // FIXED MQTT CONNECTION USING WEB-SAFE PROTOCOL LANE
     client = mqtt.connect('wss://io.adafruit.com/mqtt', {
+
         port: 443,
+
         username: AIO_USERNAME,
+
         password: AIO_KEY,
+
         reconnectPeriod: 5000,
+
         connectTimeout: 30000,
-        rejectUnauthorized: false, // Prevents cloud SSL handshake failures
+
+        rejectUnauthorized: false,
+
         clean: true
     });
 
     // CONNECTED
     client.on('connect', () => {
-        console.log("MQTT CONNECTED SUCCESSFULLY!");
 
-        const topic = `${AIO_USERNAME}/feeds/google-binbot`;
+        console.log("MQTT CONNECTED!");
+
+        const topic =
+            `${AIO_USERNAME}/feeds/google-binbot`;
 
         client.subscribe(topic, (err) => {
+
             if (err) {
-                console.error("SUBSCRIBE FAILED:", err);
+
+                console.error(
+                    "SUBSCRIBE FAILED:",
+                    err
+                );
+
             } else {
-                console.log(`SUBSCRIBED TO ${topic}`);
+
+                console.log(
+                    `SUBSCRIBED TO ${topic}`
+                );
             }
         });
     });
 
     // MESSAGE RECEIVED
     client.on('message', (topic, message) => {
-        const payload = message.toString().trim().toUpperCase();
-        console.log(`MESSAGE RECEIVED: ${topic} -> ${payload}`);
 
-        if (topic === `${AIO_USERNAME}/feeds/google-binbot`) {
+        const payload =
+            message.toString()
+            .trim()
+            .toUpperCase();
+
+        console.log(
+            `MESSAGE: ${topic} -> ${payload}`
+        );
+
+        if (
+            topic ===
+            `${AIO_USERNAME}/feeds/google-binbot`
+        ) {
+
+            // OPEN
             if (payload === "OPEN") {
+
                 if (lastLidState !== "OPEN") {
+
                     usageCount++;
+
                     currentFill += 5;
-                    if (currentFill > 100) currentFill = 100;
+
+                    if (currentFill > 100) {
+
+                        currentFill = 100;
+                    }
                 }
+
                 lastLidState = "OPEN";
             }
-            else if (payload === "CLOSE" || payload === "CLOSED") {
+
+            // CLOSE
+            else if (
+                payload === "CLOSE" ||
+                payload === "CLOSED"
+            ) {
+
                 lastLidState = "CLOSED";
             }
+
             console.log("STATE:", lastLidState);
         }
     });
 
+    // ERRORS
     client.on('error', (err) => {
-        console.error("MQTT ERROR:", err.message);
+
+        console.error(
+            "MQTT ERROR:",
+            err.message
+        );
     });
 
     client.on('offline', () => {
+
         console.log("MQTT OFFLINE");
     });
 
     client.on('reconnect', () => {
+
         console.log("MQTT RECONNECTING...");
     });
 }
