@@ -16,7 +16,7 @@ const client = mqtt.connect(`mqtts://io.adafruit.com`, {
   password: AIO_KEY
 });
 
-// Serve your frontend assets from the public folder
+// Serve frontend assets from the public folder
 app.use(express.static('public'));
 app.use(express.json());
 
@@ -28,8 +28,13 @@ client.on('connect', () => {
 });
 
 client.on('message', (topic, msg) => {
-    if(topic.includes('google-binbot')) lastLidState = msg.toString();
-    if(topic.includes('fill-level')) currentFill = parseInt(msg.toString());
+    const payload = msg.toString().toUpperCase().trim();
+    if (topic.includes('google-binbot')) {
+        lastLidState = payload;
+    }
+    if (topic.includes('fill-level')) {
+        currentFill = parseInt(payload) || 0;
+    }
 });
 
 // GET endpoint to stream data to your emerald dashboard terminal
@@ -42,27 +47,32 @@ app.get('/analytics', (req, res) => {
     });
 });
 
-// POST gateway endpoint supporting both JSON and URL query param triggers
+// POST gateway endpoint supporting web app overrides and voice commands
 app.post('/command', (req, res) => {
     const start = Date.now();
-    
-    // Look for the command in the JSON body OR a URL parameter (?cmd=OPEN)
-    const cmd = (req.body && req.body.command) ? req.body.command : req.query.cmd;
+    const cmd = req.body.command;
     
     if (!cmd) {
         return res.status(400).json({ error: "Missing command parameter" });
     }
 
-    const upperCmd = cmd.toUpperCase();
+    const upperCmd = cmd.toUpperCase().trim();
 
+    // Publish directly to Adafruit feed where ESP32 is listening
     client.publish(`${AIO_USERNAME}/feeds/google-binbot`, upperCmd, () => {
-        if(upperCmd === "OPEN") usageCount++;
+        if (upperCmd === "OPEN") usageCount++;
         res.json({ 
             status: "Success",
             commandSent: upperCmd,
             latency: Date.now() - start 
         });
     });
+});
+
+// API route allowing the web app terminal to reset metrics via voice/button
+app.post('/reset', (req, res) => {
+    usageCount = 0;
+    res.json({ status: "Reset successful", usage: usageCount });
 });
 
 app.listen(PORT, "0.0.0.0", () => console.log(`BinBot CMS Live on port ${PORT}`));
