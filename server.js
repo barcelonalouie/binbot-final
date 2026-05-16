@@ -10,7 +10,7 @@ let usageCount = 0;
 let lastLidState = "CLOSED";
 let currentFill = 0;
 
-// Establish secure MQTT highway connection directly to Adafruit
+// Connect to Adafruit IO via Secure MQTT broker
 const client = mqtt.connect(`mqtts://io.adafruit.com`, {
   username: AIO_USERNAME,
   password: AIO_KEY
@@ -19,28 +19,34 @@ const client = mqtt.connect(`mqtts://io.adafruit.com`, {
 app.use(express.static('public'));
 app.use(express.json());
 
+// Listen for hardware and cloud triggers from Adafruit IO
 client.on('connect', () => {
     console.log("Connected to Adafruit MQTT Broker successfully.");
     client.subscribe(`${AIO_USERNAME}/feeds/google-binbot`);
     client.subscribe(`${AIO_USERNAME}/feeds/fill-level`);
 });
 
-// Intercept streams from the physical ESP32 device or external API applets (like IFTTT)
 client.on('message', (topic, msg) => {
-    const payload = msg.toString().toUpperCase().trim();
+    let payload = msg.toString().toUpperCase().trim();
+    
     if (topic.includes('google-binbot')) {
-        lastLidState = payload;
-        // Automatically track deployment cycles whenever the state transitions to open
-        if (payload === "OPEN") {
+        // Normalize "CLOSE" to "CLOSED" so frontend matching is 100% reliable
+        if (payload === "CLOSE") payload = "CLOSED";
+        
+        // Track a new deployment cycle ONLY when shifting from CLOSED to OPEN
+        if (payload === "OPEN" && lastLidState !== "OPEN") {
             usageCount++;
         }
+        
+        lastLidState = payload;
     }
+    
     if (topic.includes('fill-level')) {
         currentFill = parseInt(payload) || 0;
     }
 });
 
-// Route for your app frontend to poll metrics
+// GET endpoint to stream fresh analytics data to the web app terminal
 app.get('/analytics', (req, res) => {
     res.json({ 
         usage: usageCount, 
@@ -50,7 +56,7 @@ app.get('/analytics', (req, res) => {
     });
 });
 
-// Manual command gateway endpoint
+// POST gateway endpoint supporting web app dashboard button overrides
 app.post('/command', (req, res) => {
     const start = Date.now();
     const cmd = req.body.command;
@@ -59,7 +65,8 @@ app.post('/command', (req, res) => {
         return res.status(400).json({ error: "Missing command parameter" });
     }
 
-    const upperCmd = cmd.toUpperCase().trim();
+    let upperCmd = cmd.toUpperCase().trim();
+    if (upperCmd === "CLOSE") upperCmd = "CLOSED";
 
     client.publish(`${AIO_USERNAME}/feeds/google-binbot`, upperCmd, () => {
         res.json({ 
@@ -70,7 +77,7 @@ app.post('/command', (req, res) => {
     });
 });
 
-// Counter wipe endpoint
+// API route to allow the web terminal to clear metrics via voice or button
 app.post('/reset', (req, res) => {
     usageCount = 0;
     res.json({ status: "Reset successful", usage: usageCount });

@@ -7,7 +7,7 @@ let standardFillAlertTriggered = false;
 // Voice Synthesis Engine (The Web App Talks Back)
 function speak(text) {
     if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel(); // Clear any trapped speech queues
+        window.speechSynthesis.cancel(); // Clear any active speech queues
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.rate = 1.0; 
         utterance.pitch = 1.0;
@@ -36,7 +36,7 @@ if (SpeechRecognition) {
         document.getElementById('voice-status').innerText = "System: Hands-Free Interrogation Active";
     };
 
-    // Keep the microphone looping indefinitely
+    // Keep the microphone looping indefinitely (Touchless Always-On)
     recognition.onend = () => {
         try {
             recognition.start();
@@ -71,17 +71,16 @@ function addLogEntry(text, type = 'user') {
     logOutput.scrollTop = logOutput.scrollHeight; 
 }
 
-// 1. INTERROGATION HUB: HANDLING WHAT YOU SAY TO THE WEB APP
+// 1. INTERROGATION HUB: HANDLING OPERATOR VOICE KEYWORDS
 async function handleVoiceInput(phrase) {
     const cleanPhrase = phrase.trim();
     addLogEntry(`Operator Interrogation: "${cleanPhrase}"`, 'user');
 
-    // FUZZY KEYWORD MATCH: REQUEST STATUS AUDIT
+    // FUZZY KEYWORD MATCH: REQUEST STATUS AUDIT (Audit, Status, Report)
     if (cleanPhrase.includes("audit") || cleanPhrase.includes("status") || cleanPhrase.includes("report")) {
         addLogEntry("Compiling automated system logistics ledger...", 'voice-cmd');
         
         try {
-            // Fetch the absolute freshest values currently held by our server variable stack
             const response = await fetch('/analytics');
             const data = await response.json();
             
@@ -89,7 +88,6 @@ async function handleVoiceInput(phrase) {
             const lidStateReport = data.state.toLowerCase();
             const cycleCount = data.usage;
             
-            // Construct a highly professional, contextual spoken response
             const auditReport = `Audit complete. Current capacity is ${currentCapacity} percent. Main structural lid is currently ${lidStateReport}. Total deployments are at ${cycleCount} mechanical cycles. System wear indicators are nominal.`;
             
             speak(auditReport);
@@ -100,7 +98,7 @@ async function handleVoiceInput(phrase) {
             speak("Error compiling logistics report. System matrix offline.");
         }
     } 
-    // FUZZY KEYWORD MATCH: CLEAR SYSTEM METRICS
+    // FUZZY KEYWORD MATCH: CLEAR LIFECYCLE METRICS (Clear, Reset)
     else if (cleanPhrase.includes("clear") || cleanPhrase.includes("reset")) {
         addLogEntry("Contacting server to flush operational analytics counters...", 'voice-cmd');
         speak("Clearing mechanical lifecycle wear parameters back to zero.");
@@ -115,25 +113,25 @@ async function handleVoiceInput(phrase) {
             addLogEntry("System Error: Failed to contact backend parameters.", 'system');
         }
     }
-    // REJECT EVERYTHING ELSE AS PASSIVE AUDITING TEXT NOTE
+    // REJECT UNKNOWN KEYWORDS AS STANDARD NOTEPAD NOTES
     else {
         addLogEntry(`Compliance Note: Data appended to system logs.`, 'system');
     }
 }
 
-// 2. BACKGROUND TELEMETRY HUB: LOGGING WHAT HARDWARE / GOOGLE GOVERNANCE DOES
+// 2. BACKGROUND TELEMETRY HUB: PROCESSING REAL-TIME HARDWARE AND CLOUD DATA
 async function fetchAnalytics() {
     try {
         const response = await fetch('/analytics');
         const data = await response.json();
 
-        // Update Fill Level Graph Matrix
+        // Update Fill Level GUI Progress Graph
         const fillBar = document.getElementById('fill-bar');
         const fillText = document.getElementById('fill-text');
         fillText.innerText = data.fill;
         fillBar.style.height = `${data.fill}%`;
 
-        // 90% Capacity Alarm
+        // 90% Industrial Capacity Safety Alarm
         if (data.fill >= 90) {
             fillBar.classList.add('critical');
             if (!standardFillAlertTriggered) {
@@ -145,27 +143,29 @@ async function fetchAnalytics() {
             standardFillAlertTriggered = false;
         }
 
-        // Keep local dashboard counters up to speed
+        // Synchronize Deployment Counter Element
         document.getElementById('usage-count').innerText = data.usage;
 
-        // TRACK EXTERNAL HARDWARE CHANGES (CATCHING GOOGLE ASSISTANT/IFTTT ACTION)
+        // HEAVY LID TRANSITIONS STATE PROCESSING (CATCHES GOOGLE ASSISTANT/IFTTT LIVE SHIFTS)
         const currentLidState = data.state.toUpperCase().trim();
-        if (currentLidState !== lastAnnouncedState) {
+        if (currentLidState !== lastAnnouncedState && currentLidState !== "UNKNOWN") {
             
             if (currentLidState === "OPEN") {
-                // If it opened and we DIDN'T trigger it from a local click, it came from Google Assistant cloud
                 addLogEntry("AUDIT ALERT: External access logged via Google Assistant Cloud Gateway.", 'voice-cmd');
                 speak("External access logged. Remote activation triggered via Google Assistant Cloud Gateway. Actuator cycling to open state.");
-            } else if (currentLidState === "CLOSE" || currentLidState === "CLOSED") {
+            } 
+            else if (currentLidState === "CLOSE" || currentLidState === "CLOSED") {
                 addLogEntry("AUDIT ALERT: System sealing sequence complete.", 'system');
                 speak("System notice. Main structural lid is now securely closed.");
             }
             
             lastAnnouncedState = currentLidState;
         }
+        
+        // Update the visual text element card on screen
         document.getElementById('lid-state').innerText = currentLidState;
 
-        // MQTT Monitor Line
+        // MQTT Pipeline Diagnostics Line
         const mqttStatus = document.getElementById('mqtt-status');
         const statusText = mqttStatus.querySelector('.status-text');
         if (data.mqtt) {
@@ -180,6 +180,21 @@ async function fetchAnalytics() {
     }
 }
 
-// Check backend matrix every 2 seconds
+// Backup Manual Click Action to Directly Push Commands via API Gateway
+async function sendHardwareOverride(command) {
+    addLogEntry(`Manual UI Press ➔ Pushing state: ${command}...`, 'voice-cmd');
+    speak(`Manual web override deployed. Cycling hardware to ${command}.`);
+    try {
+        await fetch('/command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: command })
+        });
+    } catch (err) {
+        addLogEntry("System Error: Local override gateway down.", 'system');
+    }
+}
+
+// Query the backend server memory parameters every 2 seconds
 setInterval(fetchAnalytics, 2000);
 fetchAnalytics();
