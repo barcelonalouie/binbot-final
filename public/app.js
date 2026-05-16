@@ -1,150 +1,332 @@
-// Native Web Speech Recognition Initialization
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+// ===============================
+// BINBOT FRONTEND SYSTEM
+// FULLY FIXED VERSION
+// ===============================
+
+// Speech Recognition
+const SpeechRecognition =
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
+
 let recognition;
+
+// System State
 let lastAnnouncedState = "CLOSED";
 let standardFillAlertTriggered = false;
+let isSpeaking = false;
 
-// Voice Synthesis Engine (The Web App Talks Back)
+// ===============================
+// SPEECH ENGINE
+// ===============================
+
 function speak(text) {
+
     if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel(); // Clear any trapped speech queues
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.0; 
+
+        // Prevent speech overlap
+        window.speechSynthesis.cancel();
+
+        // STOP LISTENING WHILE TALKING
+        if (recognition) {
+
+            try {
+                recognition.stop();
+            } catch (e) {}
+        }
+
+        isSpeaking = true;
+
+        const utterance =
+            new SpeechSynthesisUtterance(text);
+
+        utterance.rate = 1.0;
         utterance.pitch = 1.0;
+
+        // SPEECH FINISHED
+        utterance.onend = () => {
+
+            isSpeaking = false;
+
+            // Restart mic safely
+            setTimeout(() => {
+
+                if (recognition) {
+
+                    try {
+                        recognition.start();
+                    } catch (e) {}
+                }
+
+            }, 1000);
+        };
+
         window.speechSynthesis.speak(utterance);
     }
 }
 
+// ===============================
+// SPEECH RECOGNITION
+// ===============================
+
 if (SpeechRecognition) {
+
     recognition = new SpeechRecognition();
-    recognition.continuous = false; 
+
+    recognition.continuous = false;
     recognition.lang = 'en-US';
     recognition.interimResults = false;
 
-    // Automatically start listening on page boot
+    // START LISTENING ON PAGE LOAD
     window.addEventListener('DOMContentLoaded', () => {
+
         try {
+
             recognition.start();
-        } catch(e) {
-            console.log("Speech initialization trace:", e);
+
+        } catch (e) {
+
+            console.log("Speech start error:", e);
         }
     });
 
+    // MIC STARTED
     recognition.onstart = () => {
-        document.getElementById('mic-btn').innerText = "AUDIT LINE LISTENING [ALWAYS-ON]";
-        document.getElementById('mic-btn').className = "btn btn-voice listening";
-        document.getElementById('voice-status').innerText = "System Active";
+
+        document.getElementById('mic-btn').innerText =
+            "AUDIT LINE LISTENING [ALWAYS-ON]";
+
+        document.getElementById('mic-btn').className =
+            "btn btn-voice listening";
+
+        document.getElementById('voice-status').innerText =
+            "System Active";
     };
 
-    // Keep the microphone looping indefinitely
+    // MIC ENDED
     recognition.onend = () => {
-        try {
-            recognition.start();
-        } catch(e) {
-            // Failsafe for accidental double invocation triggers
+
+        // DO NOT RESTART IF SPEAKING
+        if (!isSpeaking) {
+
+            try {
+
+                recognition.start();
+
+            } catch (e) {}
         }
     };
 
+    // USER SPOKE
     recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript.toLowerCase();
+
+        const transcript =
+            event.results[0][0].transcript
+            .toLowerCase()
+            .trim();
+
         handleVoiceInput(transcript);
     };
 
+    // ERRORS
     recognition.onerror = (event) => {
-        console.log("Speech engine status feedback:", event.error);
+
+        console.log("Speech recognition error:",
+            event.error);
     };
 
 } else {
-    console.error("Speech Recognition API is not supported by this browser.");
-    document.getElementById('voice-status').innerText = "Mic Hardware Unsupported";
+
+    console.error(
+        "Speech Recognition not supported."
+    );
+
+    document.getElementById('voice-status').innerText =
+        "Mic Unsupported";
 }
+
+// ===============================
+// LOG SYSTEM
+// ===============================
 
 function addLogEntry(text, type = 'user') {
-    const logOutput = document.getElementById('log-output');
-    const entry = document.createElement('div');
-    const timestamp = new Date().toLocaleTimeString();
-    
-    entry.className = `log-entry ${type}`;
-    entry.innerText = `[${timestamp}] ${text}`;
-    
+
+    const logOutput =
+        document.getElementById('log-output');
+
+    const entry =
+        document.createElement('div');
+
+    const timestamp =
+        new Date().toLocaleTimeString();
+
+    entry.className =
+        `log-entry ${type}`;
+
+    entry.innerText =
+        `[${timestamp}] ${text}`;
+
     logOutput.appendChild(entry);
-    logOutput.scrollTop = logOutput.scrollHeight; 
+
+    logOutput.scrollTop =
+        logOutput.scrollHeight;
 }
 
-// 1. INTERROGATION HUB: HANDLING WHAT YOU SAY TO THE WEB APP
+// ===============================
+// VOICE COMMAND HANDLER
+// ===============================
+
 async function handleVoiceInput(phrase) {
-    const cleanPhrase = phrase.trim();
-    addLogEntry(`Operator Interrogation: "${cleanPhrase}"`, 'user');
 
-    // FUZZY KEYWORD MATCH: REQUEST STATUS AUDIT
-    if (cleanPhrase.includes("audit") || cleanPhrase.includes("status") || cleanPhrase.includes("report")) {
-        addLogEntry("Compiling automated system logistics ledger...", 'voice-cmd');
-        
+    const cleanPhrase = phrase.trim();
+
+    addLogEntry(
+        `Operator Input: "${cleanPhrase}"`,
+        'user'
+    );
+
+    // STATUS / AUDIT
+    if (
+        cleanPhrase.includes("audit") ||
+        cleanPhrase.includes("status") ||
+        cleanPhrase.includes("report")
+    ) {
+
+        addLogEntry(
+            "Generating system audit...",
+            'voice-cmd'
+        );
+
         try {
-            // Fetch the absolute freshest values currently held by our server variable stack
-            const response = await fetch('/analytics');
-            const data = await response.json();
-            
-            const currentCapacity = data.fill;
-            const lidStateReport = data.state.toLowerCase();
-            const cycleCount = data.usage;
-            
-            // Construct a highly professional, contextual spoken response
-            const auditReport = `Audit complete. Current capacity is ${currentCapacity} percent. Main structural lid is currently ${lidStateReport}. Total deployments are at ${cycleCount} mechanical cycles. System wear indicators are nominal.`;
-            
+
+            const response =
+                await fetch('/analytics');
+
+            const data =
+                await response.json();
+
+            const auditReport =
+                `Audit complete. Current capacity is ${data.fill} percent. Main lid is currently ${data.state.toLowerCase()}. Total deployments are ${data.usage}.`;
+
             speak(auditReport);
-            addLogEntry("System Audit spoken back to operator successfully.", 'voice-cmd');
-            
+
         } catch (err) {
-            addLogEntry("System Error: Analytics matrix temporarily offline.", 'system');
-            speak("Error compiling logistics report. System matrix offline.");
-        }
-    } 
-    // FUZZY KEYWORD MATCH: CLEAR SYSTEM METRICS
-    else if (cleanPhrase.includes("clear") || cleanPhrase.includes("reset")) {
-        addLogEntry("Contacting server to flush operational analytics counters...", 'voice-cmd');
-        speak("Clearing mechanical lifecycle wear parameters back to zero.");
-        try {
-            const response = await fetch('/reset', { method: 'POST' });
-            const data = await response.json();
-            if (data.status) {
-                addLogEntry("System Action: Server deployment metrics cleared to 0.", 'voice-cmd');
-                document.getElementById('usage-count').innerText = "0";
-            }
-        } catch (err) {
-            addLogEntry("System Error: Failed to contact backend parameters.", 'system');
+
+            addLogEntry(
+                "Analytics server offline.",
+                'system'
+            );
+
+            speak(
+                "System analytics unavailable."
+            );
         }
     }
-    // REJECT EVERYTHING ELSE AS PASSIVE AUDITING TEXT NOTE
+
+    // RESET / CLEAR
+    else if (
+        cleanPhrase.includes("clear") ||
+        cleanPhrase.includes("reset")
+    ) {
+
+        addLogEntry(
+            "Resetting system counters...",
+            'voice-cmd'
+        );
+
+        try {
+
+            const response =
+                await fetch('/reset', {
+
+                    method: 'POST'
+                });
+
+            const data =
+                await response.json();
+
+            if (data.success) {
+
+                document.getElementById(
+                    'usage-count'
+                ).innerText = "0";
+
+                document.getElementById(
+                    'fill-text'
+                ).innerText = "0";
+
+                document.getElementById(
+                    'fill-bar'
+                ).style.height = "0%";
+
+                speak(
+                    "System counters reset successfully."
+                );
+
+                addLogEntry(
+                    "Counters reset completed.",
+                    'system'
+                );
+            }
+
+        } catch (err) {
+
+            addLogEntry(
+                "Reset failed.",
+                'system'
+            );
+
+            speak(
+                "Reset failed."
+            );
+        }
+    }
+
+    // UNKNOWN COMMAND
     else {
-        addLogEntry(`Compliance Note: Data appended to system logs.`, 'system');
+
+        addLogEntry(
+            "Unknown voice command detected.",
+            'system'
+        );
     }
 }
+
+// ===============================
+// ANALYTICS FETCHER
+// ===============================
 
 async function fetchAnalytics() {
 
     try {
 
-        const response = await fetch('/analytics');
+        const response =
+            await fetch('/analytics');
 
-        const data = await response.json();
+        const data =
+            await response.json();
 
         // FILL LEVEL
-        const fillBar = document.getElementById('fill-bar');
-        const fillText = document.getElementById('fill-text');
+        const fillBar =
+            document.getElementById('fill-bar');
+
+        const fillText =
+            document.getElementById('fill-text');
 
         fillText.innerText = data.fill;
 
-        fillBar.style.height = `${data.fill}%`;
+        fillBar.style.height =
+            `${data.fill}%`;
 
-        // CRITICAL ALERT
+        // CRITICAL WARNING
         if (data.fill >= 90) {
 
             fillBar.classList.add('critical');
 
             if (!standardFillAlertTriggered) {
 
-                speak("Warning. Waste capacity critically high.");
+                speak(
+                    "Warning. Waste capacity critically high."
+                );
 
                 standardFillAlertTriggered = true;
             }
@@ -156,44 +338,66 @@ async function fetchAnalytics() {
             standardFillAlertTriggered = false;
         }
 
-        // USAGE
-        document.getElementById('usage-count').innerText = data.usage;
+        // USAGE COUNT
+        document.getElementById(
+            'usage-count'
+        ).innerText = data.usage;
 
         // LID STATE
-        const currentLidState = data.state.toUpperCase().trim();
+        const currentLidState =
+            data.state
+            .toUpperCase()
+            .trim();
 
-        document.getElementById('lid-state').innerText = currentLidState;
+        document.getElementById(
+            'lid-state'
+        ).innerText = currentLidState;
 
-        // STATE CHANGE DETECTION
-        if (currentLidState !== lastAnnouncedState) {
+        // DETECT STATE CHANGES
+        if (
+            currentLidState !==
+            lastAnnouncedState
+        ) {
 
             if (currentLidState === "OPEN") {
 
                 addLogEntry(
-                    "REMOTE OPEN DETECTED FROM GOOGLE ASSISTANT",
+                    "Remote lid opening detected.",
                     'voice-cmd'
                 );
 
-                speak("Remote lid opening detected.");
+                speak(
+                    "Lid opened remotely."
+                );
 
-            } else if (currentLidState === "CLOSED") {
+            } else if (
+                currentLidState === "CLOSED"
+            ) {
 
                 addLogEntry(
-                    "LID SUCCESSFULLY CLOSED",
+                    "Lid closed successfully.",
                     'system'
                 );
 
-                speak("Lid closed successfully.");
+                speak(
+                    "Lid closed successfully."
+                );
             }
 
-            lastAnnouncedState = currentLidState;
+            lastAnnouncedState =
+                currentLidState;
         }
 
         // MQTT STATUS
-        const mqttStatus = document.getElementById('mqtt-status');
+        const mqttStatus =
+            document.getElementById(
+                'mqtt-status'
+            );
 
         const statusText =
-            mqttStatus.querySelector('.status-text');
+            mqttStatus.querySelector(
+                '.status-text'
+            );
 
         if (data.mqtt) {
 
@@ -214,6 +418,17 @@ async function fetchAnalytics() {
 
     } catch (error) {
 
-        console.error("FETCH ERROR:", error);
+        console.error(
+            "Analytics fetch failed:",
+            error
+        );
     }
 }
+
+// ===============================
+// START ANALYTICS LOOP
+// ===============================
+
+setInterval(fetchAnalytics, 2000);
+
+fetchAnalytics();
