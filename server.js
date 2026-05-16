@@ -2,32 +2,49 @@ const express = require('express');
 const mqtt = require('mqtt');
 const app = express();
 
+// FORCE PORT BINDING: This tells Railway immediately that our server is alive
 const PORT = process.env.PORT || 8080;
 
-// Quote-Proof Sanitization Profile (Strips Railway's forced JSON quotation marks)
+// Quote-Proof Sanitization Profile
 const AIO_USERNAME = (process.env.AIO_USERNAME || "").replace(/^"|"$/g, '').trim();
 const AIO_KEY = (process.env.AIO_KEY || "").replace(/^"|"$/g, '').trim();
 
 let usageCount = 0;
 let lastLidState = "CLOSED";
-let currentFill = 35; // Presentation baseline value
+let currentFill = 35; 
 let client = null;
 
-// Cloud WebSocket Connection Tunnel (Uses standard Web Port 443)
-if (AIO_USERNAME && AIO_KEY) {
+app.use(express.static('public'));
+app.use(express.json());
+
+// Boot the Express Server IMMEDIATELY so Railway's health check never triggers a SIGTERM
+const server = app.listen(PORT, "0.0.0.0", () => {
+    console.log(`BinBot Terminal Live on port ${PORT}`);
+    initializeMQTT(); // Defer MQTT initialization until after network binding is secured
+});
+
+function initializeMQTT() {
+    if (!AIO_USERNAME || !AIO_KEY) {
+        console.error("CONFIGURATION ERROR: Missing or unreadable AIO credentials.");
+        return;
+    }
+
     console.log(`LOG INITIALIZATION: Spawning tunnel for account string: [${AIO_USERNAME}]`);
-    
+
+    // Using a clean WebSockets connection payload
     client = mqtt.connect(`wss://io.adafruit.com/mqtt`, {
-      port: 443, // Disguises connection as normal web traffic to bypass cloud firewalls
-      username: AIO_USERNAME,
-      password: AIO_KEY,
-      rejectUnauthorized: false,
-      reconnectPeriod: 4000
+        port: 443,
+        username: AIO_USERNAME,
+        password: AIO_KEY,
+        rejectUnauthorized: false,
+        reconnectPeriod: 5000 // Give breathing room between retries to avoid spamming
     });
 
     client.on('connect', () => {
         console.log("SUCCESS: Cloud WebSocket Tunnel Established on Railway.");
-        client.subscribe(`${AIO_USERNAME}/feeds/+`); // Dynamically tracks your binbot feed
+        client.subscribe(`${AIO_USERNAME}/feeds/+`, (err) => {
+            if (err) console.error("Subscription Error:", err.message);
+        });
     });
 
     client.on('message', (topic, msg) => {
@@ -39,8 +56,8 @@ if (AIO_USERNAME && AIO_KEY) {
             
             if (payload === "OPEN" && lastLidState !== "OPEN") {
                 usageCount++;
-                currentFill += 5; 
-                if (currentFill > 100) currentFill = 100; 
+                currentFill += 5;
+                if (currentFill > 100) currentFill = 100;
             }
             
             lastLidState = payload;
@@ -50,13 +67,13 @@ if (AIO_USERNAME && AIO_KEY) {
     client.on('error', (err) => {
         console.error("Adafruit WebSocket Alert:", err.message);
     });
-} else {
-    console.error("CONFIGURATION ERROR: Missing AIO credentials in your environment variables.");
+
+    client.on('offline', () => {
+        console.log("MQTT Client went offline. Attempting automatic tunnel recovery...");
+    });
 }
 
-app.use(express.static('public'));
-app.use(express.json());
-
+// REST API Endpoints
 app.get('/analytics', (req, res) => {
     res.json({ 
         usage: usageCount, 
@@ -70,7 +87,7 @@ app.post('/command', (req, res) => {
     const start = Date.now();
     const cmd = req.body.command;
     
-    if (!cmd || !client) {
+    if (!cmd || !client || !client.connected) {
         return res.status(400).json({ error: "Command processing failed or MQTT client is offline." });
     }
 
@@ -91,5 +108,3 @@ app.post('/reset', (req, res) => {
     currentFill = 0; 
     res.json({ status: "Reset successful", usage: usageCount, fill: currentFill });
 });
-
-app.listen(PORT, "0.0.0.0", () => console.log(`BinBot Terminal Live on port ${PORT}`));
