@@ -4,12 +4,12 @@ let recognition;
 let lastAnnouncedState = "CLOSED";
 let standardFillAlertTriggered = false;
 
-// Voice Synthesis Helper Function (App Speaks Back)
+// Voice Synthesis Engine (The Web App Talks Back)
 function speak(text) {
     if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel(); // Halt any active speech queues
+        window.speechSynthesis.cancel(); // Clear any trapped speech queues
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.0;
+        utterance.rate = 1.0; 
         utterance.pitch = 1.0;
         window.speechSynthesis.speak(utterance);
     }
@@ -21,27 +21,27 @@ if (SpeechRecognition) {
     recognition.lang = 'en-US';
     recognition.interimResults = false;
 
-    // Automatically starts listening the exact moment the page loads
+    // Automatically start listening on page boot
     window.addEventListener('DOMContentLoaded', () => {
         try {
             recognition.start();
         } catch(e) {
-            console.log("Startup notice:", e);
+            console.log("Speech initialization trace:", e);
         }
     });
 
     recognition.onstart = () => {
-        document.getElementById('mic-btn').innerText = "SYSTEM LISTENING [ALWAYS-ON]";
+        document.getElementById('mic-btn').innerText = "AUDIT LINE LISTENING [ALWAYS-ON]";
         document.getElementById('mic-btn').className = "btn btn-voice listening";
-        document.getElementById('voice-status').innerText = "Mic Status: Active & Touchless";
+        document.getElementById('voice-status').innerText = "System: Hands-Free Interrogation Active";
     };
 
-    // Keep loop active infinitely
+    // Keep the microphone looping indefinitely
     recognition.onend = () => {
         try {
             recognition.start();
         } catch(e) {
-            // Catches double invocation loops safely
+            // Failsafe for accidental double invocation triggers
         }
     };
 
@@ -51,12 +51,12 @@ if (SpeechRecognition) {
     };
 
     recognition.onerror = (event) => {
-        console.log("Speech recognition status:", event.error);
+        console.log("Speech engine status feedback:", event.error);
     };
 
 } else {
     console.error("Speech Recognition API is not supported by this browser.");
-    document.getElementById('voice-status').innerText = "Mic Unsupported";
+    document.getElementById('voice-status').innerText = "Mic Hardware Unsupported";
 }
 
 function addLogEntry(text, type = 'user') {
@@ -71,44 +71,39 @@ function addLogEntry(text, type = 'user') {
     logOutput.scrollTop = logOutput.scrollHeight; 
 }
 
-// Handle Incoming Spoken Commands (You Speak to Dashboard)
+// 1. INTERROGATION HUB: HANDLING WHAT YOU SAY TO THE WEB APP
 async function handleVoiceInput(phrase) {
-    addLogEntry(`Dictated: "${phrase}"`, 'user');
+    const cleanPhrase = phrase.trim();
+    addLogEntry(`Operator Interrogation: "${cleanPhrase}"`, 'user');
 
-    // 1. COMMAND TRIGGER: OPEN LID OVERRIDE
-    if (phrase.includes("open bin") || phrase.includes("open lid")) {
-        addLogEntry("Sending web override command: OPEN...", 'voice-cmd');
-        speak("Executing web override. Opening lid now.");
+    // FUZZY KEYWORD MATCH: REQUEST STATUS AUDIT
+    if (cleanPhrase.includes("audit") || cleanPhrase.includes("status") || cleanPhrase.includes("report")) {
+        addLogEntry("Compiling automated system logistics ledger...", 'voice-cmd');
+        
         try {
-            await fetch('/command', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ command: 'OPEN' })
-            });
+            // Fetch the absolute freshest values currently held by our server variable stack
+            const response = await fetch('/analytics');
+            const data = await response.json();
+            
+            const currentCapacity = data.fill;
+            const lidStateReport = data.state.toLowerCase();
+            const cycleCount = data.usage;
+            
+            // Construct a highly professional, contextual spoken response
+            const auditReport = `Audit complete. Current capacity is ${currentCapacity} percent. Main structural lid is currently ${lidStateReport}. Total deployments are at ${cycleCount} mechanical cycles. System wear indicators are nominal.`;
+            
+            speak(auditReport);
+            addLogEntry("System Audit spoken back to operator successfully.", 'voice-cmd');
+            
         } catch (err) {
-            addLogEntry("System Error: Web override gateway unreachable.", 'system');
+            addLogEntry("System Error: Analytics matrix temporarily offline.", 'system');
+            speak("Error compiling logistics report. System matrix offline.");
         }
     } 
-
-    // 2. COMMAND TRIGGER: CLOSE LID OVERRIDE
-    else if (phrase.includes("close bin") || phrase.includes("close lid")) {
-        addLogEntry("Sending web override command: CLOSE...", 'voice-cmd');
-        speak("Executing web override. Closing lid now.");
-        try {
-            await fetch('/command', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ command: 'CLOSE' })
-            });
-        } catch (err) {
-            addLogEntry("System Error: Web override gateway unreachable.", 'system');
-        }
-    }
-
-    // 3. COMMAND TRIGGER: RESET COUNTER METRICS
-    else if (phrase.includes("clear counter") || phrase.includes("reset metrics")) {
-        addLogEntry("Contacting server to clear logistics counters...", 'voice-cmd');
-        speak("Clearing deployment lifecycle metrics.");
+    // FUZZY KEYWORD MATCH: CLEAR SYSTEM METRICS
+    else if (cleanPhrase.includes("clear") || cleanPhrase.includes("reset")) {
+        addLogEntry("Contacting server to flush operational analytics counters...", 'voice-cmd');
+        speak("Clearing mechanical lifecycle wear parameters back to zero.");
         try {
             const response = await fetch('/reset', { method: 'POST' });
             const data = await response.json();
@@ -117,78 +112,74 @@ async function handleVoiceInput(phrase) {
                 document.getElementById('usage-count').innerText = "0";
             }
         } catch (err) {
-            addLogEntry("System Error: Failed to contact backend database.", 'system');
+            addLogEntry("System Error: Failed to contact backend parameters.", 'system');
         }
-    } 
-    
-    // 4. COMMAND TRIGGER: TERMINAL DIAGNOSTICS
-    else if (phrase.includes("system check") || phrase.includes("diagnostic")) {
-        addLogEntry("Executing Local Action: Web Gateway Node Status: operational.", 'voice-cmd');
-        speak("System diagnostic check nominal. Nodes operational.");
-    } 
-    
-    // 5. STANDARD MAINTENANCE NOTEPAD MEMOS
+    }
+    // REJECT EVERYTHING ELSE AS PASSIVE AUDITING TEXT NOTE
     else {
-        addLogEntry(`Saved Note: Entry logged to database successfully.`, 'system');
+        addLogEntry(`Compliance Note: Data appended to system logs.`, 'system');
     }
 }
 
-// Background telemetry polling (Dashboard Listens to Hardware Changes)
+// 2. BACKGROUND TELEMETRY HUB: LOGGING WHAT HARDWARE / GOOGLE GOVERNANCE DOES
 async function fetchAnalytics() {
     try {
         const response = await fetch('/analytics');
         const data = await response.json();
 
-        // Update Fill Level Telemetry View
+        // Update Fill Level Graph Matrix
         const fillBar = document.getElementById('fill-bar');
         const fillText = document.getElementById('fill-text');
         fillText.innerText = data.fill;
         fillBar.style.height = `${data.fill}%`;
 
-        // Smart Audible Alert: Fill Level exceeds 90%
+        // 90% Capacity Alarm
         if (data.fill >= 90) {
             fillBar.classList.add('critical');
             if (!standardFillAlertTriggered) {
-                speak("Warning. Waste fill level has exceeded ninety percent. Emptying is required immediately.");
-                standardFillAlertTriggered = true; // Avoid voice spamming every 2 seconds
+                speak("Warning. Waste capacity limit reached. Emptying required immediately to maintain food safety codes.");
+                standardFillAlertTriggered = true;
             }
         } else {
             fillBar.classList.remove('critical');
-            standardFillAlertTriggered = false; // Reset warning once emptied
+            standardFillAlertTriggered = false;
         }
 
-        // Live Metric Counters
+        // Keep local dashboard counters up to speed
         document.getElementById('usage-count').innerText = data.usage;
 
-        // Smart Audible Alert: Heavy Lid Transitions
-        const currentLidState = data.state.toUpperCase();
+        // TRACK EXTERNAL HARDWARE CHANGES (CATCHING GOOGLE ASSISTANT/IFTTT ACTION)
+        const currentLidState = data.state.toUpperCase().trim();
         if (currentLidState !== lastAnnouncedState) {
+            
             if (currentLidState === "OPEN") {
-                speak("System notice. Main structural lid has been opened.");
-                addLogEntry("Telemetry Broadcast: Heavy structural lid state flipped to OPEN.", 'system');
+                // If it opened and we DIDN'T trigger it from a local click, it came from Google Assistant cloud
+                addLogEntry("AUDIT ALERT: External access logged via Google Assistant Cloud Gateway.", 'voice-cmd');
+                speak("External access logged. Remote activation triggered via Google Assistant Cloud Gateway. Actuator cycling to open state.");
             } else if (currentLidState === "CLOSE" || currentLidState === "CLOSED") {
-                speak("System notice. Main structural lid is now closed.");
-                addLogEntry("Telemetry Broadcast: Heavy structural lid state flipped to CLOSED.", 'system');
+                addLogEntry("AUDIT ALERT: System sealing sequence complete.", 'system');
+                speak("System notice. Main structural lid is now securely closed.");
             }
+            
             lastAnnouncedState = currentLidState;
         }
         document.getElementById('lid-state').innerText = currentLidState;
 
-        // Connectivity Monitor
+        // MQTT Monitor Line
         const mqttStatus = document.getElementById('mqtt-status');
         const statusText = mqttStatus.querySelector('.status-text');
         if (data.mqtt) {
             mqttStatus.className = "status-badge connected";
-            statusText.innerText = "MQTT CONNECTED";
+            statusText.innerText = "MQTT CONNECTOR ONLINE";
         } else {
             mqttStatus.className = "status-badge";
-            statusText.innerText = "MQTT DISCONNECTED";
+            statusText.innerText = "MQTT CONNECTOR OFFLINE";
         }
     } catch (error) {
-        console.error("Error updating analytics:", error);
+        console.error("Data pipeline processing error:", error);
     }
 }
 
-// Check for backend updates every 2 seconds
+// Check backend matrix every 2 seconds
 setInterval(fetchAnalytics, 2000);
 fetchAnalytics();

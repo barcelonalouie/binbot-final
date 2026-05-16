@@ -10,34 +10,37 @@ let usageCount = 0;
 let lastLidState = "CLOSED";
 let currentFill = 0;
 
-// Connect to Adafruit IO via Secure MQTT broker
+// Establish secure MQTT highway connection directly to Adafruit
 const client = mqtt.connect(`mqtts://io.adafruit.com`, {
   username: AIO_USERNAME,
   password: AIO_KEY
 });
 
-// Serve frontend assets from the public folder
 app.use(express.static('public'));
 app.use(express.json());
 
-// Listen for hardware updates from Adafruit IO
 client.on('connect', () => {
     console.log("Connected to Adafruit MQTT Broker successfully.");
     client.subscribe(`${AIO_USERNAME}/feeds/google-binbot`);
     client.subscribe(`${AIO_USERNAME}/feeds/fill-level`);
 });
 
+// Intercept streams from the physical ESP32 device or external API applets (like IFTTT)
 client.on('message', (topic, msg) => {
     const payload = msg.toString().toUpperCase().trim();
     if (topic.includes('google-binbot')) {
         lastLidState = payload;
+        // Automatically track deployment cycles whenever the state transitions to open
+        if (payload === "OPEN") {
+            usageCount++;
+        }
     }
     if (topic.includes('fill-level')) {
         currentFill = parseInt(payload) || 0;
     }
 });
 
-// GET endpoint to stream data to your emerald dashboard terminal
+// Route for your app frontend to poll metrics
 app.get('/analytics', (req, res) => {
     res.json({ 
         usage: usageCount, 
@@ -47,7 +50,7 @@ app.get('/analytics', (req, res) => {
     });
 });
 
-// POST gateway endpoint supporting web app overrides and voice commands
+// Manual command gateway endpoint
 app.post('/command', (req, res) => {
     const start = Date.now();
     const cmd = req.body.command;
@@ -58,9 +61,7 @@ app.post('/command', (req, res) => {
 
     const upperCmd = cmd.toUpperCase().trim();
 
-    // Publish directly to Adafruit feed where ESP32 is listening
     client.publish(`${AIO_USERNAME}/feeds/google-binbot`, upperCmd, () => {
-        if (upperCmd === "OPEN") usageCount++;
         res.json({ 
             status: "Success",
             commandSent: upperCmd,
@@ -69,7 +70,7 @@ app.post('/command', (req, res) => {
     });
 });
 
-// API route allowing the web app terminal to reset metrics via voice/button
+// Counter wipe endpoint
 app.post('/reset', (req, res) => {
     usageCount = 0;
     res.json({ status: "Reset successful", usage: usageCount });
