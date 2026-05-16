@@ -36,138 +36,98 @@ if (SpeechRecognition) {
         document.getElementById('voice-status').innerText = "System: Hands-Free Interrogation Active";
     };
 
-    // Keep the microphone looping indefinitely (Touchless Always-On)
+    // Keep the microphone looping indefinitely
     recognition.onend = () => {
         try {
             recognition.start();
         } catch(e) {
-            // Failsafe for accidental double invocation triggers
+            // Context protection for trace overruns
         }
     };
 
-    recognition.onresult = (event) => {
+    recognition.onresult = async (event) => {
         const transcript = event.results[0][0].transcript.toLowerCase();
-        handleVoiceInput(transcript);
-    };
+        addLogEntry(`Voice Input Decoded: "${transcript}"`, 'user-cmd');
 
-    recognition.onerror = (event) => {
-        console.log("Speech engine status feedback:", event.error);
+        // Core Command Routing Rules
+        if (transcript.includes('open') || transcript.includes('activate bin')) {
+            addLogEntry("Executing Automated System Command: OPENING LID", 'system');
+            speak("Compliance order received. Moving mechanical partition to open configuration.");
+            await sendHardwareCommand('OPEN');
+        } 
+        else if (transcript.includes('close') || transcript.includes('shut bin')) {
+            addLogEntry("Executing Automated System Command: CLOSING LID", 'system');
+            speak("Compliance order received. Returning mechanical partition to sealed configuration.");
+            await sendHardwareCommand('CLOSE');
+        }
+        else if (transcript.includes('status') || transcript.includes('check level')) {
+            const currentLevel = document.getElementById('fill-text').innerText;
+            speak(`Current tracking matrices state waste volume stands at ${currentLevel} percent capacity.`);
+        }
+        else if (transcript.includes('flush system') || transcript.includes('reset logs')) {
+            addLogEntry("Voice Command Authorization Verified. Wiping diagnostic values...", 'system');
+            speak("Executing complete logistical database purge.");
+            await fetch('/reset', { method: 'POST' });
+            fetchAnalytics();
+        }
     };
-
-} else {
-    console.error("Speech Recognition API is not supported by this browser.");
-    document.getElementById('voice-status').innerText = "Mic Hardware Unsupported";
 }
 
-function addLogEntry(text, type = 'user') {
-    const logOutput = document.getElementById('log-output');
-    const entry = document.createElement('div');
+function addLogEntry(text, type) {
+    const consoleBox = document.getElementById('log-output');
     const timestamp = new Date().toLocaleTimeString();
-    
-    entry.className = `log-entry ${type}`;
-    entry.innerText = `[${timestamp}] ${text}`;
-    
-    logOutput.appendChild(entry);
-    logOutput.scrollTop = logOutput.scrollHeight; 
+    const logLine = document.createElement('div');
+    logLine.className = `log-entry ${type}`;
+    logLine.innerText = `[${timestamp}] ${text}`;
+    consoleBox.appendChild(logLine);
+    consoleBox.scrollTop = consoleBox.scrollHeight;
 }
 
-// 1. INTERROGATION HUB: HANDLING OPERATOR VOICE KEYWORDS
-async function handleVoiceInput(phrase) {
-    const cleanPhrase = phrase.trim();
-    addLogEntry(`Operator Interrogation: "${cleanPhrase}"`, 'user');
-
-    // FUZZY KEYWORD MATCH: REQUEST STATUS AUDIT (Audit, Status, Report)
-    if (cleanPhrase.includes("audit") || cleanPhrase.includes("status") || cleanPhrase.includes("report")) {
-        addLogEntry("Compiling automated system logistics ledger...", 'voice-cmd');
-        
-        try {
-            const response = await fetch('/analytics');
-            const data = await response.json();
-            
-            const currentCapacity = data.fill;
-            const lidStateReport = data.state.toLowerCase();
-            const cycleCount = data.usage;
-            
-            const auditReport = `Audit complete. Current capacity is ${currentCapacity} percent. Main structural lid is currently ${lidStateReport}. Total deployments are at ${cycleCount} mechanical cycles. System wear indicators are nominal.`;
-            
-            speak(auditReport);
-            addLogEntry("System Audit spoken back to operator successfully.", 'voice-cmd');
-            
-        } catch (err) {
-            addLogEntry("System Error: Analytics matrix temporarily offline.", 'system');
-            speak("Error compiling logistics report. System matrix offline.");
-        }
-    } 
-    // FUZZY KEYWORD MATCH: CLEAR LIFECYCLE METRICS (Clear, Reset)
-    else if (cleanPhrase.includes("clear") || cleanPhrase.includes("reset")) {
-        addLogEntry("Contacting server to flush operational analytics counters...", 'voice-cmd');
-        speak("Clearing mechanical lifecycle wear parameters back to zero.");
-        try {
-            const response = await fetch('/reset', { method: 'POST' });
-            const data = await response.json();
-            if (data.status) {
-                addLogEntry("System Action: Server deployment metrics cleared to 0.", 'voice-cmd');
-                document.getElementById('usage-count').innerText = "0";
-            }
-        } catch (err) {
-            addLogEntry("System Error: Failed to contact backend parameters.", 'system');
-        }
-    }
-    // REJECT UNKNOWN KEYWORDS AS STANDARD NOTEPAD NOTES
-    else {
-        addLogEntry(`Compliance Note: Data appended to system logs.`, 'system');
+async function sendHardwareCommand(action) {
+    try {
+        await fetch('/command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: action })
+        });
+    } catch(err) {
+        addLogEntry("Network Exception: Control channel synchronization lost.", 'system');
     }
 }
 
-// 2. BACKGROUND TELEMETRY HUB: PROCESSING REAL-TIME HARDWARE AND CLOUD DATA
 async function fetchAnalytics() {
     try {
-        const response = await fetch('/analytics');
-        const data = await response.json();
+        const res = await fetch('/analytics');
+        const data = await res.json();
 
-        // Update Fill Level GUI Progress Graph
-        const fillBar = document.getElementById('fill-bar');
-        const fillText = document.getElementById('fill-text');
-        fillText.innerText = data.fill;
-        fillBar.style.height = `${data.fill}%`;
+        // Render Fill Level Metrics
+        const currentFill = data.fill;
+        document.getElementById('fill-text').innerText = currentFill;
+        document.getElementById('fill-bar').style.height = `${currentFill}%`;
 
-        // 90% Industrial Capacity Safety Alarm
-        if (data.fill >= 90) {
-            fillBar.classList.add('critical');
-            if (!standardFillAlertTriggered) {
-                speak("Warning. Waste capacity limit reached. Emptying required immediately to maintain food safety codes.");
-                standardFillAlertTriggered = true;
-            }
-        } else {
-            fillBar.classList.remove('critical');
+        // Volume Escalation Voice Warning Triggers
+        if (currentFill >= 85 && !standardFillAlertTriggered) {
+            speak("Logistical Warning. Storage capacity limits are reaching critical volume thresholds.");
+            standardFillAlertTriggered = true;
+        } else if (currentFill < 85) {
             standardFillAlertTriggered = false;
         }
 
-        // Synchronize Deployment Counter Element
+        // Render Counter Data
         document.getElementById('usage-count').innerText = data.usage;
 
-        // HEAVY LID TRANSITIONS STATE PROCESSING (CATCHES GOOGLE ASSISTANT/IFTTT LIVE SHIFTS)
-        const currentLidState = data.state.toUpperCase().trim();
-        if (currentLidState !== lastAnnouncedState && currentLidState !== "UNKNOWN") {
-            
-            if (currentLidState === "OPEN") {
-                addLogEntry("AUDIT ALERT: External access logged via Google Assistant Cloud Gateway.", 'voice-cmd');
-                speak("External access logged. Remote activation triggered via Google Assistant Cloud Gateway. Actuator cycling to open state.");
-            } 
-            else if (currentLidState === "CLOSE" || currentLidState === "CLOSED") {
-                addLogEntry("AUDIT ALERT: System sealing sequence complete.", 'system');
-                speak("System notice. Main structural lid is now securely closed.");
-            }
-            
+        // Sync Lid Status Text
+        const currentLidState = data.state;
+        if (currentLidState !== lastAnnouncedState) {
+            addLogEntry(`Telemetry Shift Detected: Partition State flipped to ${currentLidState}`, 'system');
             lastAnnouncedState = currentLidState;
         }
-        
-        // Update the visual text element card on screen
         document.getElementById('lid-state').innerText = currentLidState;
 
-        // MQTT Pipeline Diagnostics Line
+        // FIXED: Target 'mqtt-status' exactly to match the index.html structure
         const mqttStatus = document.getElementById('mqtt-status');
         const statusText = mqttStatus.querySelector('.status-text');
+        
         if (data.mqtt) {
             mqttStatus.className = "status-badge connected";
             statusText.innerText = "MQTT CONNECTOR ONLINE";
@@ -197,4 +157,3 @@ async function sendHardwareOverride(command) {
 
 // Query the backend server memory parameters every 2 seconds
 setInterval(fetchAnalytics, 2000);
-fetchAnalytics();
