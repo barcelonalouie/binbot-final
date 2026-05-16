@@ -2,60 +2,58 @@ const express = require('express');
 const mqtt = require('mqtt');
 const app = express();
 
-// Secure dynamic web binding port
+// FORCE PORT BINDING: This tells Railway immediately that our server is alive
 const PORT = process.env.PORT || 8080;
 
-// Quote-Proof Sanitization Subsystem
+// Quote-Proof Sanitization Profile
 const AIO_USERNAME = (process.env.AIO_USERNAME || "").replace(/^"|"$/g, '').trim();
 const AIO_KEY = (process.env.AIO_KEY || "").replace(/^"|"$/g, '').trim();
 
 let usageCount = 0;
 let lastLidState = "CLOSED";
-let currentFill = 35; // Presentation baseline value
+let currentFill = 35; 
 let client = null;
 
 app.use(express.static('public'));
 app.use(express.json());
 
-// Force immediate server binding to maintain green cloud status indicators
+// Boot the Express Server IMMEDIATELY so Railway's health check never triggers a SIGTERM
 const server = app.listen(PORT, "0.0.0.0", () => {
-    console.log(`BinBot CMS Engine Active on port ${PORT}`);
-    initializeMQTT();
+    console.log(`BinBot Terminal Live on port ${PORT}`);
+    initializeMQTT(); // Defer MQTT initialization until after network binding is secured
 });
 
 function initializeMQTT() {
     if (!AIO_USERNAME || !AIO_KEY) {
-        console.error("CONFIGURATION ALERT: Credentials invalid or blank inside parameters.");
+        console.error("CONFIGURATION ERROR: Missing or unreadable AIO credentials.");
         return;
     }
 
-    console.log(`LOG MATRIX: Initiating secure WebSocket pipeline path for: [${AIO_USERNAME}]`);
+    console.log(`LOG INITIALIZATION: Spawning tunnel for account string: [${AIO_USERNAME}]`);
 
-    // Establishes a persistent live data channel over port 443
+    // Using a clean WebSockets connection payload
     client = mqtt.connect(`wss://io.adafruit.com/mqtt`, {
         port: 443,
         username: AIO_USERNAME,
         password: AIO_KEY,
         rejectUnauthorized: false,
-        reconnectPeriod: 3000
+        reconnectPeriod: 5000 // Give breathing room between retries to avoid spamming
     });
 
     client.on('connect', () => {
-        console.log(`SUCCESS: WebSocket Tunnel verified. Monitoring path: ${AIO_USERNAME}/feeds/google-binbot`);
-        // Subscribes directly to your verified feed topic identifier
-        client.subscribe(`${AIO_USERNAME}/feeds/google-binbot`);
+        console.log("SUCCESS: Cloud WebSocket Tunnel Established on Railway.");
+        client.subscribe(`${AIO_USERNAME}/feeds/+`, (err) => {
+            if (err) console.error("Subscription Error:", err.message);
+        });
     });
 
     client.on('message', (topic, msg) => {
         let payload = msg.toString().toUpperCase().trim();
-        console.log(`Incoming Matrix Stream -> [${topic}]: ${payload}`);
+        console.log(`Incoming Data Stream [${topic}] -> ${payload}`);
         
-        // Strict topic assessment boundary
-        if (topic.toLowerCase().includes('google-binbot') || topic.toLowerCase().includes('binbot')) {
-            // Re-align close configurations to standard state strings
+        if (topic.toLowerCase().includes('binbot')) {
             if (payload === "CLOSE") payload = "CLOSED";
             
-            // Incremental capacity simulations for interactive tracking indicators
             if (payload === "OPEN" && lastLidState !== "OPEN") {
                 usageCount++;
                 currentFill += 5;
@@ -67,15 +65,15 @@ function initializeMQTT() {
     });
 
     client.on('error', (err) => {
-        console.error("Adafruit Protocol Broker Exception:", err.message);
+        console.error("Adafruit WebSocket Alert:", err.message);
     });
 
     client.on('offline', () => {
-        console.log("Network drop recognized. Running automated gateway recovery loop...");
+        console.log("MQTT Client went offline. Attempting automatic tunnel recovery...");
     });
 }
 
-// Analytics REST Gateway
+// REST API Endpoints
 app.get('/analytics', (req, res) => {
     res.json({ 
         usage: usageCount, 
@@ -85,25 +83,28 @@ app.get('/analytics', (req, res) => {
     });
 });
 
-// Outbound Command Broker Pipeline
 app.post('/command', (req, res) => {
+    const start = Date.now();
     const cmd = req.body.command;
     
     if (!cmd || !client || !client.connected) {
-        return res.status(400).json({ error: "Transmission halted. Core MQTT path is offline." });
+        return res.status(400).json({ error: "Command processing failed or MQTT client is offline." });
     }
 
     let upperCmd = cmd.toUpperCase().trim();
     if (upperCmd === "CLOSE") upperCmd = "CLOSED";
 
-    // Publishes values straight back to your explicit channel location
     client.publish(`${AIO_USERNAME}/feeds/google-binbot`, upperCmd, () => {
-        res.json({ status: "Success", commandSent: upperCmd });
+        res.json({ 
+            status: "Success",
+            commandSent: upperCmd,
+            latency: Date.now() - start 
+        });
     });
 });
 
 app.post('/reset', (req, res) => {
     usageCount = 0;
-    currentFill = 0;
-    res.json({ status: "Data matrices cleared." });
+    currentFill = 0; 
+    res.json({ status: "Reset successful", usage: usageCount, fill: currentFill });
 });
