@@ -3,18 +3,20 @@ const mqtt = require('mqtt');
 const app = express();
 
 const PORT = process.env.PORT || 8080;
-const AIO_USERNAME = process.env.AIO_USERNAME || "";
-const AIO_KEY = process.env.AIO_KEY || "";
+const AIO_USERNAME = "barce"; 
+const AIO_KEY = "aio_gdqP26j5BmJTsG3xnQdHHVVlan7p"; 
 
 let usageCount = 0;
 let lastLidState = "CLOSED";
 let currentFill = 35; // Start the presentation at a realistic baseline value (35%)
 let client = null;
 
+// Directly connecting using hardcoded credentials for presentation stability
 if (AIO_USERNAME && AIO_KEY) {
     client = mqtt.connect(`wss://io.adafruit.com:443/mqtt`, {
       username: AIO_USERNAME,
       password: AIO_KEY,
+      protocol: 'wss', // CRITICAL: Tells the library to explicitly use WebSockets
       reconnectPeriod: 5000 
     });
 
@@ -45,7 +47,7 @@ if (AIO_USERNAME && AIO_KEY) {
         console.error("Adafruit Connection Alert:", err.message);
     });
 } else {
-    console.error("CONFIGURATION ERROR: Missing AIO credentials in your environment layout variables.");
+    console.error("CONFIGURATION ERROR: Missing AIO credentials.");
 }
 
 app.use(express.static('public'));
