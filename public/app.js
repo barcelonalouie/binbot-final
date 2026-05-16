@@ -121,65 +121,99 @@ async function handleVoiceInput(phrase) {
     }
 }
 
-// 2. BACKGROUND TELEMETRY HUB: LOGGING WHAT HARDWARE / GOOGLE GOVERNANCE DOES
 async function fetchAnalytics() {
+
     try {
+
         const response = await fetch('/analytics');
+
         const data = await response.json();
 
-        // Update Fill Level Graph Matrix
+        // FILL LEVEL
         const fillBar = document.getElementById('fill-bar');
         const fillText = document.getElementById('fill-text');
+
         fillText.innerText = data.fill;
+
         fillBar.style.height = `${data.fill}%`;
 
-        // 90% Capacity Alarm
+        // CRITICAL ALERT
         if (data.fill >= 90) {
+
             fillBar.classList.add('critical');
+
             if (!standardFillAlertTriggered) {
-                speak("Warning. Waste capacity limit reached. Emptying required immediately to maintain food safety codes.");
+
+                speak("Warning. Waste capacity critically high.");
+
                 standardFillAlertTriggered = true;
             }
+
         } else {
+
             fillBar.classList.remove('critical');
+
             standardFillAlertTriggered = false;
         }
 
-        // Keep local dashboard counters up to speed
+        // USAGE
         document.getElementById('usage-count').innerText = data.usage;
 
-        // TRACK EXTERNAL HARDWARE CHANGES (CATCHING GOOGLE ASSISTANT/IFTTT ACTION)
+        // LID STATE
         const currentLidState = data.state.toUpperCase().trim();
-        if (currentLidState !== lastAnnouncedState) {
-            
-            if (currentLidState === "OPEN") {
-                // If it opened and we DIDN'T trigger it from a local click, it came from Google Assistant cloud
-                addLogEntry("AUDIT ALERT: External access logged via Google Assistant Cloud Gateway.", 'voice-cmd');
-                speak("External access logged. Remote activation triggered via Google Assistant Cloud Gateway. Actuator cycling to open state.");
-            } else if (currentLidState === "CLOSE" || currentLidState === "CLOSED") {
-                addLogEntry("AUDIT ALERT: System sealing sequence complete.", 'system');
-                speak("System notice. Main structural lid is now securely closed.");
-            }
-            
-            lastAnnouncedState = currentLidState;
-        }
+
         document.getElementById('lid-state').innerText = currentLidState;
 
-        // MQTT Monitor Line
-        const mqttStatus = document.getElementById('mqtt-status');
-        const statusText = mqttStatus.querySelector('.status-text');
-        if (data.mqtt) {
-            mqttStatus.className = "status-badge connected";
-            statusText.innerText = "MQTT CONNECTOR ONLINE";
-        } else {
-            mqttStatus.className = "status-badge";
-            statusText.innerText = "MQTT CONNECTOR OFFLINE";
+        // STATE CHANGE DETECTION
+        if (currentLidState !== lastAnnouncedState) {
+
+            if (currentLidState === "OPEN") {
+
+                addLogEntry(
+                    "REMOTE OPEN DETECTED FROM GOOGLE ASSISTANT",
+                    'voice-cmd'
+                );
+
+                speak("Remote lid opening detected.");
+
+            } else if (currentLidState === "CLOSED") {
+
+                addLogEntry(
+                    "LID SUCCESSFULLY CLOSED",
+                    'system'
+                );
+
+                speak("Lid closed successfully.");
+            }
+
+            lastAnnouncedState = currentLidState;
         }
+
+        // MQTT STATUS
+        const mqttStatus = document.getElementById('mqtt-status');
+
+        const statusText =
+            mqttStatus.querySelector('.status-text');
+
+        if (data.mqtt) {
+
+            mqttStatus.className =
+                "status-badge connected";
+
+            statusText.innerText =
+                "MQTT CONNECTED";
+
+        } else {
+
+            mqttStatus.className =
+                "status-badge";
+
+            statusText.innerText =
+                "MQTT OFFLINE";
+        }
+
     } catch (error) {
-        console.error("Data pipeline processing error:", error);
+
+        console.error("FETCH ERROR:", error);
     }
 }
-
-// Check backend matrix every 2 seconds
-setInterval(fetchAnalytics, 2000);
-fetchAnalytics();
