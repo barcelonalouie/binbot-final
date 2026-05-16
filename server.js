@@ -13,19 +13,21 @@ let lastLidState = "CLOSED";
 let currentFill = 35; // Presentation baseline value (35%)
 let client = null;
 
-// Secure MQTTS Connection Tunneling Profile
+// Cloud-Proof WebSocket Profile (Matches Your Account Topology)
 if (AIO_USERNAME && AIO_KEY) {
-    client = mqtt.connect(`mqtts://io.adafruit.com`, {
-      port: 8883,
+    console.log(`LOG INITIALIZATION: Spawning tunnel for account: [${AIO_USERNAME}]`);
+    
+    client = mqtt.connect(`wss://io.adafruit.com/mqtt`, {
+      port: 443, // Disguises stream over standard HTTPS web traffic to slip through firewalls
       username: AIO_USERNAME,
       password: AIO_KEY,
-      rejectUnauthorized: false, // Prevents cloud proxies from blocking handshakes
+      rejectUnauthorized: false,
       reconnectPeriod: 4000
     });
 
     client.on('connect', () => {
-        console.log("SUCCESS: Secure MQTTS Data Tunnel Established on Railway.");
-        client.subscribe(`${AIO_USERNAME}/feeds/+`); // Wildcard subscription to catch your feed instantly
+        console.log("SUCCESS: Cloud WebSocket Tunnel Established on Railway.");
+        client.subscribe(`${AIO_USERNAME}/feeds/+`); // Wildcard captures your feed dynamically
     });
 
     client.on('message', (topic, msg) => {
@@ -46,7 +48,7 @@ if (AIO_USERNAME && AIO_KEY) {
     });
 
     client.on('error', (err) => {
-        console.error("Adafruit Connection Alert:", err.message);
+        console.error("Adafruit WebSocket Alert:", err.message);
     });
 } else {
     console.error("CONFIGURATION ERROR: Missing AIO credentials in your environment variables.");
