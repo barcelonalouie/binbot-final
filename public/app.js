@@ -1,13 +1,12 @@
-// Native Web Speech Recognition Initialization
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition;
 let lastAnnouncedState = "CLOSED";
 let standardFillAlertTriggered = false;
 
-// Voice Synthesis Engine (The Web App Talks Back)
+// Audio Speak-Back Mechanism
 function speak(text) {
     if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel(); // Clear any active speech queues
+        window.speechSynthesis.cancel(); 
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.rate = 1.0; 
         utterance.pitch = 1.0;
@@ -21,35 +20,42 @@ if (SpeechRecognition) {
     recognition.lang = 'en-US';
     recognition.interimResults = false;
 
-    // Automatically start listening on page boot
     window.addEventListener('DOMContentLoaded', () => {
+        // Enable the microbutton display immediately
+        const micBtn = document.getElementById('mic-btn');
+        if (micBtn) micBtn.removeAttribute('disabled');
+        
         try {
             recognition.start();
         } catch(e) {
-            console.log("Speech initialization trace:", e);
+            console.log("Speech initialization error:", e);
         }
     });
 
     recognition.onstart = () => {
-        document.getElementById('mic-btn').innerText = "AUDIT LINE LISTENING [ALWAYS-ON]";
-        document.getElementById('mic-btn').className = "btn btn-voice listening";
+        const micBtn = document.getElementById('mic-btn');
+        if (micBtn) {
+            micBtn.innerText = "AUDIT LINE LISTENING [ALWAYS-ON]";
+            micBtn.className = "btn btn-voice listening";
+        }
         document.getElementById('voice-status').innerText = "System: Hands-Free Interrogation Active";
     };
 
-    // Keep the microphone looping indefinitely
+    // FIXED: Added a 200ms delay window to prevent the cloud browser from blocking the audio loop
     recognition.onend = () => {
-        try {
-            recognition.start();
-        } catch(e) {
-            // Context protection for trace overruns
-        }
+        setTimeout(() => {
+            try {
+                recognition.start();
+            } catch(e) {
+                // Prevents crash loops if browser is busy
+            }
+        }, 200);
     };
 
     recognition.onresult = async (event) => {
         const transcript = event.results[0][0].transcript.toLowerCase();
         addLogEntry(`Voice Input Decoded: "${transcript}"`, 'user-cmd');
 
-        // Core Command Routing Rules
         if (transcript.includes('open') || transcript.includes('activate bin')) {
             addLogEntry("Executing Automated System Command: OPENING LID", 'system');
             speak("Compliance order received. Moving mechanical partition to open configuration.");
@@ -75,6 +81,7 @@ if (SpeechRecognition) {
 
 function addLogEntry(text, type) {
     const consoleBox = document.getElementById('log-output');
+    if (!consoleBox) return;
     const timestamp = new Date().toLocaleTimeString();
     const logLine = document.createElement('div');
     logLine.className = `log-entry ${type}`;
@@ -100,12 +107,10 @@ async function fetchAnalytics() {
         const res = await fetch('/analytics');
         const data = await res.json();
 
-        // Render Fill Level Metrics
         const currentFill = data.fill;
         document.getElementById('fill-text').innerText = currentFill;
         document.getElementById('fill-bar').style.height = `${currentFill}%`;
 
-        // Volume Escalation Voice Warning Triggers
         if (currentFill >= 85 && !standardFillAlertTriggered) {
             speak("Logistical Warning. Storage capacity limits are reaching critical volume thresholds.");
             standardFillAlertTriggered = true;
@@ -113,10 +118,8 @@ async function fetchAnalytics() {
             standardFillAlertTriggered = false;
         }
 
-        // Render Counter Data
         document.getElementById('usage-count').innerText = data.usage;
 
-        // Sync Lid Status Text
         const currentLidState = data.state;
         if (currentLidState !== lastAnnouncedState) {
             addLogEntry(`Telemetry Shift Detected: Partition State flipped to ${currentLidState}`, 'system');
@@ -124,7 +127,6 @@ async function fetchAnalytics() {
         }
         document.getElementById('lid-state').innerText = currentLidState;
 
-        // FIXED: Target 'mqtt-status' exactly to match the index.html structure
         const mqttStatus = document.getElementById('mqtt-status');
         const statusText = mqttStatus.querySelector('.status-text');
         
@@ -140,7 +142,6 @@ async function fetchAnalytics() {
     }
 }
 
-// Backup Manual Click Action to Directly Push Commands via API Gateway
 async function sendHardwareOverride(command) {
     addLogEntry(`Manual UI Press ➔ Pushing state: ${command}...`, 'voice-cmd');
     speak(`Manual web override deployed. Cycling hardware to ${command}.`);
@@ -155,5 +156,4 @@ async function sendHardwareOverride(command) {
     }
 }
 
-// Query the backend server memory parameters every 2 seconds
 setInterval(fetchAnalytics, 2000);
