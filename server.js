@@ -6,8 +6,8 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 
 // ADAFRUIT IO CREDENTIALS
-const AIO_USERNAME =barce;
-const AIO_KEY =aio_gdqP26j5BmJTsG3xnQdHHVVIan7p;
+const AIO_USERNAME ="barce";
+const AIO_KEY ="aio_gdqP26j5BmJTsG3xnQdHHVVIan7p";
 
 // SYSTEM VARIABLES
 let usageCount = 0;
