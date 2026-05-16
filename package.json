@@ -1,9 +1,14 @@
 {
   "name": "binbot-web",
   "version": "1.0.0",
+  "description": "BinBot Central Management System for PUP CpE Final",
   "main": "server.js",
+  "type": "commonjs",
   "scripts": {
     "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "express": "^4.18.2",

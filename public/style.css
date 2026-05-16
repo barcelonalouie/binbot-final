@@ -1,0 +1,258 @@
+:root {
+    --bg-main: #0a0f0d;
+    --bg-card: #111815;
+    --border-color: #1b2b24;
+    --text-primary: #e2e8f0;
+    --text-muted: #64748b;
+    
+    /* Emerald Neon Accent Palette */
+    --emerald-glow: #10b981;
+    --emerald-dim: #064e3b;
+    --emerald-soft: rgba(16, 185, 129, 0.15);
+    
+    /* Alert States */
+    --critical-glow: #ef4444;
+    --critical-soft: rgba(239, 68, 68, 0.15);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    padding: 2rem 1rem;
+    display: flex;
+    justify-content: center;
+}
+
+.dashboard-container {
+    width: 100%;
+    max-width: 1000px;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+/* Header Section */
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 1.5rem;
+}
+
+.brand h1 {
+    font-size: 1.75rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    color: #fff;
+}
+
+.subtitle {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-top: 0.25rem;
+}
+
+/* MQTT Status Badge */
+.status-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #161e1b;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    font-size: 0.75rem;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+}
+
+.status-badge .indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--critical-glow);
+    box-shadow: 0 0 8px var(--critical-glow);
+}
+
+.status-badge.connected {
+    border-color: var(--emerald-glow);
+}
+
+.status-badge.connected .indicator {
+    background: var(--emerald-glow);
+    box-shadow: 0 0 10px var(--emerald-glow);
+    animation: pulse 2s infinite;
+}
+
+/* Layout Grid */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+/* Clean UI Cards */
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+.card h3 {
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 1.25rem;
+}
+
+.card-desc {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+    margin-bottom: 1.5rem;
+}
+
+/* Vertical Fill Bar Metric */
+.progress-container {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    margin: auto 0;
+}
+
+.progress-bar-vertical {
+    width: 50px;
+    height: 160px;
+    background: #141c19;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+}
+
+.progress-fill {
+    width: 100%;
+    background: linear-gradient(180deg, var(--emerald-glow) 0%, var(--emerald-dim) 100%);
+    box-shadow: 0 0 15px var(--emerald-soft);
+    transition: height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Alert styling for full trash can */
+.progress-fill.critical {
+    background: linear-gradient(180deg, var(--critical-glow) 0%, #7f1d1d 100%);
+    box-shadow: 0 0 15px var(--critical-soft);
+}
+
+.metric-display {
+    display: flex;
+    align-items: baseline;
+}
+
+.metric-value {
+    font-size: 4rem;
+    font-weight: 800;
+    color: #fff;
+}
+
+.metric-unit {
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    margin-left: 0.25rem;
+}
+
+/* Telemetry Items */
+.stat-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #16221d;
+}
+
+.stat-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.stat-item label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+}
+
+.stat-item .value {
+    font-weight: 700;
+    font-size: 1.15rem;
+}
+
+.stat-item .value.strings {
+    color: var(--emerald-glow);
+    letter-spacing: 0.05em;
+}
+
+.stat-item .value .unit {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-weight: normal;
+}
+
+/* Control Interactive Buttons */
+.control-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: auto;
+}
+
+.btn {
+    width: 100%;
+    padding: 0.85rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: #141c19;
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    border-color: var(--emerald-glow);
+    background: var(--emerald-soft);
+    color: #fff;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.1);
+}
+
+.btn:active {
+    transform: scale(0.99);
+}
+
+@keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+}
