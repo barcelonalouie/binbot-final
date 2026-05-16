@@ -11,7 +11,7 @@
         <header class="dashboard-header">
             <div class="brand">
                 <h1>BINBOT // CMS</h1>
-                <p class="subtitle">PUP CpE Final Project</p>
+                <p class="subtitle">Commercial Waste Logistics Terminal</p>
             </div>
             <div class="status-badge" id="mqtt-status">
                 <span class="indicator"></span>
@@ -22,7 +22,7 @@
         <main class="dashboard-grid">
             
             <section class="card telemetry-card">
-                <h3>WASTE FILL LEVEL</h3>
+                <h3>COMMERCIAL FILL LEVEL</h3>
                 <div class="progress-container">
                     <div class="progress-bar-vertical">
                         <div class="progress-fill" id="fill-bar" style="height: 0%;"></div>
@@ -34,29 +34,39 @@
             </section>
 
             <section class="card stats-card">
-                <h3>SYSTEM METRICS</h3>
+                <h3>LOGISTICS TELEMETRY</h3>
                 <div class="stat-group">
                     <div class="stat-item">
-                        <label>LID STATE</label>
+                        <label>HEAVY LID STATE</label>
                         <div class="value strings" id="lid-state">UNKNOWN</div>
                     </div>
                     <div class="stat-item">
-                        <label>TOTAL USAGE COUNT</label>
+                        <label>TOTAL DEPLOYMENTS</label>
                         <div class="value numbers" id="usage-count">0</div>
                     </div>
                     <div class="stat-item">
-                        <label>API LATENCY</label>
+                        <label>GATEWAY LATENCY</label>
                         <div class="value numbers" id="latency-value">-- <span class="unit">ms</span></div>
                     </div>
                 </div>
             </section>
 
-            <section class="card control-card">
-                <h3>HARDWARE OVERRIDE</h3>
-                <p class="card-desc">Manually trigger BinBot lid mechanisms via Adafruit IO MQTT gateway.</p>
-                <div class="control-actions">
-                    <button class="btn btn-open" onclick="sendControl('OPEN')">TRIGGER OPEN</button>
-                    <button class="btn btn-close" onclick="sendControl('CLOSE')">TRIGGER CLOSE</button>
+            <section class="card voice-card">
+                <h3>VOICE INTERACTION HUB</h3>
+                <p class="card-desc">The console automatically loops voice detection. Speak commands or log maintenance completely touchless.</p>
+                
+                <div class="voice-controls">
+                    <button class="btn btn-voice" id="mic-btn" disabled>
+                        SYSTEM LISTENING
+                    </button>
+                    <div class="voice-status" id="voice-status">Mic Status: Initializing...</div>
+                </div>
+
+                <div class="log-console">
+                    <label>SYSTEM MAINTENANCE LOGS</label>
+                    <div class="log-output" id="log-output">
+                        <div class="log-entry system">[SYSTEM INIT] Awaiting terminal actions...</div>
+                    </div>
                 </div>
             </section>
 

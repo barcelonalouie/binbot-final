@@ -152,7 +152,6 @@ body {
     transition: height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Alert styling for full trash can */
 .progress-fill.critical {
     background: linear-gradient(180deg, var(--critical-glow) 0%, #7f1d1d 100%);
     box-shadow: 0 0 15px var(--critical-soft);
@@ -218,12 +217,12 @@ body {
     font-weight: normal;
 }
 
-/* Control Interactive Buttons */
-.control-actions {
+/* Voice Module UI Additions */
+.voice-controls {
     display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-top: auto;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
 }
 
 .btn {
@@ -236,19 +235,67 @@ body {
     font-weight: 700;
     font-size: 0.85rem;
     letter-spacing: 0.05em;
-    cursor: pointer;
-    transition: all 0.2s ease;
 }
 
-.btn:hover {
-    border-color: var(--emerald-glow);
-    background: var(--emerald-soft);
-    color: #fff;
-    box-shadow: 0 0 12px rgba(16, 185, 129, 0.1);
+.btn-voice {
+    background: #064e3b !important;
+    border-color: var(--emerald-glow) !important;
+    color: #fff !important;
 }
 
-.btn:active {
-    transform: scale(0.99);
+.btn-voice.listening {
+    background: #ef4444 !important;
+    border-color: #f87171 !important;
+    animation: pulse 1.5s infinite;
+}
+
+.voice-status {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.log-console {
+    margin-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.log-console label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+
+.log-output {
+    background: #060a08;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    height: 110px;
+    padding: 0.75rem;
+    font-family: monospace;
+    font-size: 0.8rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.log-entry {
+    color: #a7f3d0;
+}
+
+.log-entry.system {
+    color: var(--text-muted);
+}
+
+.log-entry.voice-cmd {
+    color: var(--emerald-glow);
+    font-weight: bold;
 }
 
 @keyframes pulse {
