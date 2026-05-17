@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 8080;
 
 // ADAFRUIT IO CREDENTIALS
 const AIO_USERNAME = "barce";
-const AIO_KEY = "aio_xgWE06njLozWQxQHj0XLw13omnU0";
+const AIO_KEY = "aio_iUEx31WxjuXjkGvgrHGvQYsBAgAk";
 
 // SYSTEM VARIABLES
 let usageCount = 0;
