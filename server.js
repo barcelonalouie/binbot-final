@@ -44,7 +44,7 @@ function initializeMQTT() {
 
     console.log("CONNECTING TO ADAFRUIT IO VIA SECURE WEBSOCKETS...");
 
-    // FIXED MQTT CONNECTION USING WEB-SAFE PROTOCOL LANE
+    // USING WSS PROTOCOL LANE
     client = mqtt.connect('wss://io.adafruit.com/mqtt', {
 
         port: 443,
