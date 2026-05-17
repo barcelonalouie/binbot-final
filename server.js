@@ -26,7 +26,10 @@ app.listen(PORT, '0.0.0.0', () => {
 
     console.log(`SERVER RUNNING ON PORT ${PORT}`);
 
-    initializeMQTT();
+    // Deferred execution allows Express to clear Railway health checks instantly
+    setTimeout(() => {
+        initializeMQTT();
+    }, 1000);
 });
 
 // ============================
